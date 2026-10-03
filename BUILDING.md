@@ -655,6 +655,7 @@ List of supported parameters (passed as `-DPARAMETER=VALUE`):
 | USE_PLUGIN_OBSERVABILITY           | bool   | ON      | Enable building the Observability Analysis plugin
 | USE_PLUGIN_OCULARS                 | bool   | ON      | Enable building the Oculars plugin
 | USE_PLUGIN_OCULUS                  | bool   | OFF     | Enable building the Oculus plugin (support for Oculus Rift - outdated)
+| USE_PLUGIN_OPENXR                  | bool   | OFF     | Enable building the OpenXR plugin (VR headsets through OpenXR; Linux with GLX only)
 | USE_PLUGIN_ONLINEQUERIES           | bool   | ON      | Enable building the Online Queries plugin
 | USE_PLUGIN_POINTERCOORDINATES      | bool   | ON      | Enable building the Pointer Coordinates plugin
 | USE_PLUGIN_PULSARS                 | bool   | ON      | Enable building the Pulsars plugin

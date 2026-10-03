@@ -149,6 +149,10 @@ Q_IMPORT_PLUGIN(OcularsStelPluginInterface)
 Q_IMPORT_PLUGIN(OculusStelPluginInterface)
 #endif
 
+#ifdef USE_STATIC_PLUGIN_OPENXR
+Q_IMPORT_PLUGIN(OpenXRStelPluginInterface)
+#endif
+
 #ifdef USE_STATIC_PLUGIN_TELESCOPECONTROL
 Q_IMPORT_PLUGIN(TelescopeControlStelPluginInterface)
 #endif
