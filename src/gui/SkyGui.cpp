@@ -142,12 +142,17 @@ void InfoPanel::setTextFromObjects(const QList<StelObjectP>& selected)
 		infoHTML = selected[0]->getInfoString(core, infoTextFilters);
 		selected[0]->removeExtraInfoStrings(StelObject::AllInfo);
 
-		document()->setDefaultStyleSheet(css.arg(color.toHtmlColor(), opacity));
-
+		const QString styleSheet = css.arg(color.toHtmlColor(), opacity);
 		// We need the span to set the background opacity.
-		setHtml(QString("<div class='info-string'><span style='background:rgba(0, 0, 0, %1%);'>").arg(opacity)
+		const QString html = QString("<div class='info-string'><span style='background:rgba(0, 0, 0, %1%);'>").arg(opacity)
 			+ infoHTML
-			+ "</span></div>");
+			+ "</span></div>";
+		if (styleSheet == shownStyleSheet && html == shownHtml && !document()->isEmpty())
+			return;
+		shownStyleSheet = styleSheet;
+		shownHtml = html;
+		document()->setDefaultStyleSheet(styleSheet);
+		setHtml(html);
 	}
 }
 

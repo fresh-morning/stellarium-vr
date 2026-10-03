@@ -48,6 +48,9 @@ class InfoPanel : public QGraphicsTextItem
 
 	private:
 		QString infoHTML;
+		//! What was last set, as setting it again would lay it out again and
+		//! repaint the view, though nothing changed.
+		QString shownStyleSheet, shownHtml;
 		StelObject::InfoStringGroup infoTextFilters;
 		int opacity; // allows dimming text background. Negative numbers force opacity even for daylight.
 };
