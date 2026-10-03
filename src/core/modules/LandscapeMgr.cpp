@@ -1214,11 +1214,14 @@ void LandscapeMgr::onTargetLocationChanged(const StelLocation &loc, const QStrin
 	else if (flagLandscapeAutoSelection && (loc.planetName != currentPlanetName))
 	{
 		//qDebug() << "landscapeID empty. Try planet name" << loc.planetName << "or zero";
-		// If we have a landscape for selected planet then set it, otherwise use zero horizon landscape
+		// If we have a landscape for selected planet then set it, back on Earth
+		// the default one, otherwise use zero horizon landscape
 		const bool landscapeSetsLocation = getFlagLandscapeSetsLocation();
 		setFlagLandscapeSetsLocation(false);
 		if (getAllLandscapeNames().indexOf(loc.planetName)>0)
 			setCurrentLandscapeName(loc.planetName);
+		else if (loc.planetName == "Earth" && getAllLandscapeIDs().contains(getDefaultLandscapeID()))
+			setCurrentLandscapeID(getDefaultLandscapeID());
 		else
 			setCurrentLandscapeID("zero");
 		setFlagLandscapeSetsLocation(landscapeSetsLocation);
