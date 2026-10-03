@@ -77,6 +77,7 @@ StelPainter::TexturesColorShaderVars StelPainter::texturesColorShaderVars;
 StelPainter::WideLineShaderVars StelPainter::wideLineShaderVars;
 StelPainter::ColorfulWideLineShaderVars StelPainter::colorfulWideLineShaderVars;
 bool StelPainter::multisamplingEnabled=false;
+bool StelPainter::textPixelSnapping=true;
 
 StelPainter::GLState::GLState(QOpenGLFunctions* gl)
 	: blend(false),
@@ -823,8 +824,13 @@ void StelPainter::drawText(float x, float y, const QString& str, float angleDeg,
 		{
 			for (int i = 0; i < 8; i+=2)
 			{
-				vertexData[i]   = int(x + tex->size.width()*vertexBase[i]+xshift);
-				vertexData[i+1] = int(y + tex->size.height()*vertexBase[i+1]+yshift);
+				vertexData[i]   = x + tex->size.width()*vertexBase[i]+xshift;
+				vertexData[i+1] = y + tex->size.height()*vertexBase[i+1]+yshift;
+				if (textPixelSnapping)
+				{
+					vertexData[i]   = int(vertexData[i]);
+					vertexData[i+1] = int(vertexData[i+1]);
+				}
 			}
 		}
 

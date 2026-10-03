@@ -76,6 +76,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QMouseEvent>
@@ -859,14 +860,19 @@ void StelApp::update(double deltaTime)
 		frameTimeAccum=0.;
 	}
 		
+	QElapsedTimer timer;
+	timer.start();
 	core->update(deltaTime);
+	updateTimes["StelCore"] = timer.nsecsElapsed();
 
 	moduleMgr->update();
 
 	// Send the event to every StelModule
 	for (auto* i : moduleMgr->getCallOrders(StelModule::ActionUpdate))
 	{
+		timer.restart();
 		i->update(deltaTime);
+		updateTimes[i->objectName()] = timer.nsecsElapsed();
 	}
 
 	stelObjectMgr->update(deltaTime);
@@ -990,6 +996,17 @@ void StelApp::highGraphicsModeDraw()
 	const auto w = params.viewportXywh[2] * params.devicePixelsPerPixel;
 	const auto h = params.viewportXywh[3] * params.devicePixelsPerPixel;
 	StelOpenGL::checkGLErrors(__FILE__, __LINE__);
+	// Some callers alternate between two viewport sizes every frame (a VR
+	// headset's eyes and a magnified view of a part of the sky), which would
+	// otherwise rebuild the buffers twice a frame. Keep those of the previous
+	// size too; a third size replaces the older of the two.
+	if(sceneFBO && sceneFBO->size() != QSize(w,h))
+	{
+		std::swap(sceneFBO, spareSceneFBO);
+		std::swap(sceneMultisampledFBO, spareSceneMultisampledFBO);
+		std::swap(sceneMultisampledTex, spareSceneMultisampledTex);
+		std::swap(sceneMultisampledRenderbuffer, spareSceneMultisampledRenderbuffer);
+	}
 	if(!sceneFBO || sceneFBO->size() != QSize(w,h))
 	{
 		GLint viewport[4] = {};
@@ -1119,6 +1136,14 @@ void StelApp::draw()
 {
 	if (!initialized)
 		return;
+
+	if (drawOverride && !inDrawOverride)
+	{
+		inDrawOverride = true;
+		drawOverride();
+		inDrawOverride = false;
+		return;
+	}
 
 	//find out which framebuffer is the current one
 	//this is usually NOT the "zero" FBO, but one provided by QOpenGLWidget

@@ -301,6 +301,12 @@ public:
 	//! This method needs to be called once before exit.
 	static void deinitGLShaders();
 
+	//! Whether upright text lands on whole pixels, the sharpest on a screen (the
+	//! default). A view that moves by fractions of a pixel, as a headset's does
+	//! with every small turn of the head, shows it jumping a pixel at a time
+	//! against the stars instead.
+	static void setTextPixelSnapping(bool b) { textPixelSnapping = b; }
+
 	// These methods should eventually be replaced by a single setVertexArray
 	//! use instead of glVertexPointer
 	void setVertexPointer(int size, GLenum type, const void* pointer) {
@@ -532,6 +538,7 @@ private:
 	static ColorfulWideLineShaderVars colorfulWideLineShaderVars;
 
 	static bool multisamplingEnabled;
+	static bool textPixelSnapping;
 
 	//! The descriptor for the current opengl vertex array
 	ArrayDesc vertexArray;

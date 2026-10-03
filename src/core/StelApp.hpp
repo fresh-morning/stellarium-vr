@@ -20,6 +20,7 @@
 #ifndef STELAPP_HPP
 #define STELAPP_HPP
 
+#include <functional>
 #include <memory>
 #include <qopengl.h>
 #include <qguiapplication.h>
@@ -28,6 +29,7 @@
 #include <QRandomGenerator>
 #include "StelTextureTypes.hpp"
 #include "StelModule.hpp"
+#include <QHash>
 #include "StelUtils.hpp"
 #include "VecMath.hpp"
 
@@ -209,11 +211,20 @@ public:
 
 	//! Update all object according to the deltaTime in seconds.
 	void update(double deltaTime);
+	//! How long each module's update took in the last update(), in ns, by the
+	//! module's name ("StelCore" for the core), to find the slow ones.
+	const QHash<QString, qint64>& getUpdateTimes() const { return updateTimes; }
 
 	//! Draw all registered StelModule in the order defined by the order lists.
 	// 2014-11: OLD COMMENT? What does a void return?
 	// @return the max squared distance in pixels that any object has travelled since the last update.
 	void draw();
+
+	//! Let a module draw each frame itself, e.g. a VR headset rendering every
+	//! eye into its own framebuffer. While set, draw() calls it instead, and
+	//! draw() calls made from inside it draw the sky into whatever framebuffer
+	//! is bound. Pass nullptr to go back to normal drawing.
+	void setDrawOverride(std::function<void()> f) { drawOverride = std::move(f); }
 
 	//! Get the ratio between real device pixel and "Device Independent Pixel".
 	//! Usually this value is 1, but for a mac with retina screen this will be value 2.
@@ -526,6 +537,10 @@ private:
 
 	// Define whether the StelApp instance has completed initialization
 	bool initialized;
+	QHash<QString, qint64> updateTimes;
+
+	std::function<void()> drawOverride;
+	bool inDrawOverride = false;
 
 	static qint64 startMSecs;
 	static double animationScale;
@@ -561,6 +576,11 @@ private:
 	GLuint sceneMultisampledFBO = 0;
 	GLuint sceneMultisampledTex = 0;
 	GLuint sceneMultisampledRenderbuffer = 0;
+	// The scene buffers of the size drawn before the current one, kept for when it comes back.
+	std::unique_ptr<QOpenGLFramebufferObject> spareSceneFBO;
+	GLuint spareSceneMultisampledFBO = 0;
+	GLuint spareSceneMultisampledTex = 0;
+	GLuint spareSceneMultisampledRenderbuffer = 0;
 	StelTextureSP ditherPatternTex;
 	struct PostProcessorUniformLocations
 	{

@@ -234,8 +234,9 @@ public:
 
 	//! Set vision direction
 	void lookAtJ2000(const Vec3d& pos, const Vec3d& up);
-	// Unused as of 24.1
-	//void setMatAltAzModelView(const Mat4d& mat);
+	//! Set the AltAz model view matrix directly, e.g. per eye in a VR headset.
+	//! It holds until the next update() looks at the view direction again.
+	void setMatAltAzModelView(const Mat4d& mat);
 
 	Vec3d altAzToEquinoxEqu(const Vec3d& v, RefractionMode refMode=RefractionAuto) const;
 	Vec3d equinoxEquToAltAz(const Vec3d& v, RefractionMode refMode=RefractionAuto) const;

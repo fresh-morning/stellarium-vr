@@ -157,6 +157,10 @@ public:
 
 	//! To be called before the drawing stage starts
 	void preDraw();
+	//! Makes the next preDraw() keep the eye adaptation it has, whatever was
+	//! reported since: for another view of the same frame, e.g. a VR headset's
+	//! second eye, which would otherwise adapt to its own part of the sky.
+	void keepAdaptation() { maxLum = 0.f; }
 
 	//! Compute the luminance for an extended source with the given surface brightness
 	//! @param sb surface brightness in V magnitude/arcmin^2

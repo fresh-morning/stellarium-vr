@@ -122,6 +122,13 @@ public:
 	//! Releases the main GL context
 	void glContextDoneCurrent();
 
+	//! Lets something else run the frames, e.g. a VR headset that paces them
+	//! itself: while on, painting the window no longer updates or draws the
+	//! sky, and runFrame() does both instead.
+	void setFramesRunExternally(bool b) { framesRunExternally = b; }
+	//! One frame of updating and drawing, with the GL context made current.
+	void runFrame();
+
 	//! Returns the information about the GL context, this does not require the context to be active.
 	const GLInfo& getGLInformation() const { return glInfo; }
 
@@ -341,6 +348,7 @@ private:
 	class StelApp* stelApp;
 
 	bool updateQueued;
+	bool framesRunExternally = false;
 	bool flagInvertScreenShotColors;
 	bool flagScreenshotDateFileName; //! if set to true, screenshot is named by date and time format
 	bool flagOverwriteScreenshots; //! if set to true, screenshot is named exactly screenShotPrefix.png and overwrites existing file

@@ -773,6 +773,10 @@ void StelSkyDrawer::reportLuminanceInFov(float lum, bool fastAdaptation)
 
 void StelSkyDrawer::preDraw()
 {
+	// Nothing reported since the last draw, or keepAdaptation(): another draw
+	// of the same frame. Keep the adaptation, or it would start from darkness.
+	if (maxLum == 0.f)
+		return;
 	eye->setWorldAdaptationLuminance(maxLum);
 	// Re-initialize for next stage
 	oldLum = maxLum;

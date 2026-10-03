@@ -43,6 +43,7 @@
 #include <QGraphicsAnchorLayout>
 #include <QGraphicsWidget>
 #include <QGraphicsEffect>
+#include <QPaintEngine>
 #include <QFileInfo>
 #include <QIcon>
 #include <QImageWriter>
@@ -400,9 +401,31 @@ protected:
 		Q_UNUSED(option)
 		Q_UNUSED(widget)
 
+		// The sky only draws into the GL window, not when the scene is
+		// rendered into an image, e.g. the GUI for a VR headset's panel.
+		if (painter->paintEngine()->type() != QPaintEngine::OpenGL2)
+			return;
+		if (mainView->framesRunExternally)
+		{
+			mainView->drawEnded();
+			return;
+		}
+
 		//a sanity check
 		Q_ASSERT(mainView->glContext() == QOpenGLContext::currentContext());
 
+		//important to call this, or Qt may have invalid state after we have drawn (wrong textures, etc...)
+		painter->beginNativePainting();
+		frame();
+		painter->endNativePainting();
+
+		mainView->drawEnded();
+	}
+
+public:
+	//! Updates and draws, with the GL context current.
+	void frame()
+	{
 		StelApp& app = StelApp::getInstance();
 
 		// This can change even on the screen even without actual system settings change.
@@ -417,9 +440,6 @@ protected:
 		//qDebug()<<"dt"<<dt;
 		previousPaintTime = now;
 
-		//important to call this, or Qt may have invalid state after we have drawn (wrong textures, etc...)
-		painter->beginNativePainting();
-
 		//fix for bug LP:1628072 caused by QTBUG-56798
 #ifndef QT_NO_DEBUG
 		StelOpenGL::clearGLErrors();
@@ -428,10 +448,9 @@ protected:
 		//update and draw
 		app.update(dt); // may also issue GL calls
 		app.draw();
-		painter->endNativePainting();
-
-		mainView->drawEnded();
 	}
+
+protected:
 
 	QRectF boundingRect() const override
 	{
@@ -837,6 +856,10 @@ QSurfaceFormat StelMainView::getDesiredGLFormat(QSettings* configuration)
 	// FIXME: workaround for bug LP:#1705832 (https://bugs.launchpad.net/stellarium/+bug/1705832)
 	// Qt: https://bugreports.qt.io/browse/QTBUG-53273
 	const bool vsdef = false; // use vsync=false by default on macOS
+#elif defined(USE_STATIC_PLUGIN_OPENXR)
+	// A VR headset paces the frames itself, and the window waiting for its
+	// own display on top of it halves their rate.
+	const bool vsdef = false;
 #else
 	const bool vsdef = true;
 #endif
@@ -1989,6 +2012,17 @@ void StelMainView::glContextMakeCurrent()
 void StelMainView::glContextDoneCurrent()
 {
 	glWidget->doneCurrent();
+}
+
+void StelMainView::runFrame()
+{
+	glWidget->makeCurrent();
+	rootItem->frame();
+	// The context stays current, as after the widget's own painting: actions
+	// run between frames load textures and landscapes, which need it.
+	// As paint() would: the texture manager starts each frame's budget for
+	// uploading textures from it, without which none would load past the first.
+	emit frameFinished();
 }
 
 // Set the sky background color. Everything else than black creates a work of art!
