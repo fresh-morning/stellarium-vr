@@ -1,0 +1,91 @@
+# Build Stellarium with the OpenXR plugin for the Steam Frame: aarch64, inside
+# Valve's Steam Linux Runtime 4 SDK, the runtime the Frame launches native
+# Linux games in, packaged with its Qt as an AppImage. The same steps run
+# locally under Podman from the stellarium-steamframe scripts.
+name: Steam Frame AppImage
+
+on:
+  push:
+    branches: [openxr]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04-arm
+    container: registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk/arm64:4.0.20260805.254769
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runtime ships no Qt, so it comes from Debian 13, which the SDK is based on.
+      - name: Install Qt
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends \
+            qt6-base-dev qt6-charts-dev qt6-positioning-dev qt6-svg-dev qt6-svg-plugins qt6-image-formats-plugins \
+            qt6-declarative-dev qt6-serialport-dev qt6-tools-dev qt6-l10n-tools >/dev/null
+
+      # md4c comes from CPM too: static, since it is left out of the install.
+      # Off: features that download at configure time (ShowMySky, QXlsx, INDI)
+      # or pull in big modules the headset has no use for.
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=$PWD/build/install -DBUILD_SHARED_LIBS=OFF \
+            -DENABLE_SHOWMYSKY=0 -DENABLE_XLSX=0 -DENABLE_INDI=0 \
+            -DENABLE_QTWEBENGINE=0 -DENABLE_MEDIA=0 -DENABLE_SPEECH=0 -DENABLE_GPS=0 \
+            -DUSE_PLUGIN_OPENXR=1
+          cmake --build build -j"$(nproc)"
+          cmake --install build >/dev/null
+
+      - name: Package with Qt
+        run: |
+          d=$PWD/build/dist q=/usr/lib/aarch64-linux-gnu/qt6/plugins
+          rm -rf "$d" && mkdir -p "$d/lib" "$d/plugins/platforms"
+          cp -a build/install/. "$d/"
+          cp .github/steamframe/launch.sh "$d/"
+          # Only xcb (Xwayland) for the window, offscreen for the check below: the
+          # other platform plugins pull in input libraries the runtime lacks.
+          cp "$q/platforms/libqxcb.so" "$q/platforms/libqoffscreen.so" "$d/plugins/platforms/"
+          cp -r "$q/xcbglintegrations" "$q/imageformats" "$q/iconengines" "$q/tls" "$d/plugins/"
+          # Everything it links to but what every system has (excludelist): SteamOS
+          # itself has much less than the Steam Linux Runtime, e.g. no Qt and no
+          # OpenXR loader. ldd lists what those need in turn.
+          { ldd "$d/bin/stellarium"; find "$d/plugins" -name "*.so" -exec ldd {} \; ; } |
+            awk '/=> \//{print $3}' | sort -u |
+            while read -r lib; do grep -qxF "$(basename "$lib")" .github/steamframe/excludelist || echo "$lib"; done |
+            xargs cp -L -t "$d/lib"
+          need=$(find "$d/bin" "$d/lib" -type f -exec objdump -T {} \; 2>/dev/null | grep -o "GLIBC_[0-9.]*" | sort -Vu | tail -n1)
+          echo "package: $(du -sh "$d" | cut -f1), needs $need (SteamOS itself has 2.39)"
+          # Nothing may be left to the system but the excludelist.
+          if { LD_LIBRARY_PATH=$d/lib ldd "$d/bin/stellarium"
+               find "$d/lib" "$d/plugins" -name "*.so*" -exec env LD_LIBRARY_PATH="$d/lib" ldd {} \; ; } | grep "not found"; then
+            echo "package is missing libraries" >&2; exit 1
+          fi
+          QT_QPA_PLATFORM=offscreen "$d/launch.sh" --version 2>&1 | grep -E "^Stellarium "
+
+      # One file: the package as an AppDir, with the tool and runtime pinned by hash.
+      - name: Make the AppImage
+        run: |
+          rel=https://github.com/AppImage
+          curl -fsSLo appimagetool $rel/appimagetool/releases/download/1.9.1/appimagetool-aarch64.AppImage
+          curl -fsSLo runtime $rel/type2-runtime/releases/download/20251108/runtime-aarch64
+          sha256sum -c --quiet - <<SUMS
+          f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158  appimagetool
+          00cbdfcf917cc6c0ff6d3347d59e0ca1f7f45a6df1a428a0d6d8a78664d87444  runtime
+          SUMS
+          chmod +x appimagetool
+          d=$PWD/build/dist
+          ln -sf launch.sh "$d/AppRun"
+          cp "$d/share/applications/org.stellarium.Stellarium.desktop" "$d/share/icons/hicolor/256x256/apps/stellarium.png" "$d/"
+          # No FUSE in the container, so the tool unpacks itself instead of mounting.
+          ARCH=aarch64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool -n --runtime-file runtime "$d" Stellarium-aarch64.AppImage >/dev/null
+          du -h Stellarium-aarch64.AppImage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Stellarium-aarch64.AppImage
+          path: Stellarium-aarch64.AppImage
+          if-no-files-found: error
