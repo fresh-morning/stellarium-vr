@@ -89,3 +89,19 @@ jobs:
           name: Stellarium-aarch64.AppImage
           path: Stellarium-aarch64.AppImage
           if-no-files-found: error
+
+  # A tag v* publishes the AppImage as a release, which the headset's browser
+  # can download without a GitHub login, unlike a run's artifacts.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: appimage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: Stellarium-aarch64.AppImage
+      - run: gh release create "$GITHUB_REF_NAME" Stellarium-aarch64.AppImage --repo "$GITHUB_REPOSITORY" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
